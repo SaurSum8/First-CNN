@@ -5,13 +5,10 @@ import java.util.Random;
 
 public class Fully_Connected {
 
-/*	final int numInp = 784;
-	final int numHidsNeu = 16;
-	final int numHidLay = 2;
-	final int numOut = 10;*/
-
+	int numHidsNeur;
+	
 	double[] inputs;
-	double[][] hiddenNeurons;
+	double[][] hiddenNeurons; // if 0 Layers then set same number of hidden neurons as input
 	double[] outputs;
 
 	double[] desiredOuts;
@@ -34,7 +31,7 @@ public class Fully_Connected {
 	double[] biasOutGRAD;
 
 	// VALUES
-	double step = -1.0E-6;
+	double step = -1.0E-4;
 	
 	int maxOne = 0;
 	double accuracy = 0;
@@ -50,23 +47,27 @@ public class Fully_Connected {
 
 	public Fully_Connected(int numInp, int numHidLay, int numHidsNeu, int numOut) {
 		
+		numHidsNeur = numHidsNeu;
+		
 		inputs = new double[numInp];
 		hiddenNeurons = new double[numHidLay][numHidsNeu];
 		outputs = new double[numOut];
 		
 		desiredOuts = new double[outputs.length];
 		
-		inpTOhid = new double[hiddenNeurons[0].length][inputs.length];
-		inpTOhidGRAD = new double[hiddenNeurons[0].length][inputs.length];
+		inpTOhid = new double[numHidsNeu][inputs.length];
+		inpTOhidGRAD = new double[numHidsNeu][inputs.length];
 		
-		hidTOhid = new double[numHidLay - 1][hiddenNeurons[0].length][hiddenNeurons[0].length];
-		hidTOhidGRAD = new double[numHidLay - 1][hiddenNeurons[0].length][hiddenNeurons[0].length];
+		if(numHidLay != 0) {
+			hidTOhid = new double[numHidLay - 1][hiddenNeurons[0].length][hiddenNeurons[0].length];
+			hidTOhidGRAD = new double[numHidLay - 1][hiddenNeurons[0].length][hiddenNeurons[0].length];
+		}
+		
+		hidTOout = new double[outputs.length][numHidsNeu];
+		hidTOoutGRAD = new double[outputs.length][numHidsNeu];
 
-		hidTOout = new double[outputs.length][hiddenNeurons[0].length];
-		hidTOoutGRAD = new double[outputs.length][hiddenNeurons[0].length];
-
-		biasHid = new double[numHidLay][hiddenNeurons[0].length];
-		biasHidGRAD = new double[numHidLay][hiddenNeurons[0].length];
+		biasHid = new double[numHidLay][numHidsNeu];
+		biasHidGRAD = new double[numHidLay][numHidsNeu];
 		
 		biasOut = new double[outputs.length];
 		biasOutGRAD = new double[outputs.length];
@@ -83,7 +84,7 @@ public class Fully_Connected {
 
 		}
 
-		for (int i = 0; i < hidTOhid.length; i++) {
+		for (int i = 0; hiddenNeurons.length != 0 && i < hidTOhid.length; i++) {
 
 			for (int j = 0; j < hidTOhid[0].length; j++) {
 
@@ -116,27 +117,29 @@ public class Fully_Connected {
 		
 		forward();
 		
-		hidTOoutGRAD = new double[outputs.length][hiddenNeurons[0].length];
-		inpTOhidGRAD = new double[hiddenNeurons[0].length][inputs.length];
-		hidTOhidGRAD = new double[hiddenNeurons.length - 1][hiddenNeurons[0].length][hiddenNeurons[0].length];
+		hidTOoutGRAD = new double[outputs.length][numHidsNeur];
+		inpTOhidGRAD = new double[numHidsNeur][inputs.length];
 		
-		biasHidGRAD = new double[hiddenNeurons.length][hiddenNeurons[0].length];
+		if(hiddenNeurons.length != 0)
+			hidTOhidGRAD = new double[hiddenNeurons.length - 1][numHidsNeur][numHidsNeur];
+		
+		biasHidGRAD = new double[hiddenNeurons.length][numHidsNeur];
 		biasOutGRAD = new double[outputs.length];
 		
 	}
 
 	public void forward() {
 
-		for (int i = 0; i < hiddenNeurons[0].length; i++) {
+		for (int i = 0; hiddenNeurons.length != 0 && i < hiddenNeurons[0].length; i++) {
 
 			hiddenNeurons[0][i] = operation.ReLU(operation.dot(inputs, inpTOhid[i]) + biasHid[0][i]);
 
 		}
 
-		for (int i = 1; i < hiddenNeurons.length; i++) {
+		for (int i = 1; hiddenNeurons.length != 0 && i < hiddenNeurons.length; i++) {
 
 			for (int j = 0; j < hiddenNeurons[0].length; j++) {
-
+				
 				hiddenNeurons[i][j] = operation
 						.ReLU(operation.dot(hiddenNeurons[i - 1], hidTOhid[i - 1][j]) + biasHid[i][j]);
 
@@ -146,9 +149,13 @@ public class Fully_Connected {
 
 		for (int i = 0; i < outputs.length; i++) {
 
-			outputs[i] = operation
-					.sigmoid(operation.dot(hiddenNeurons[hiddenNeurons.length - 1], hidTOout[i]) + biasOut[i]);
-
+			if(hiddenNeurons.length != 0)
+				outputs[i] = operation
+						.sigmoid(operation.dot(hiddenNeurons[hiddenNeurons.length - 1], hidTOout[i]) + biasOut[i]);
+			
+			else
+				outputs[i] = operation.sigmoid(operation.dot(inputs, hidTOout[i]) + biasOut[i]);
+			
 		}
 
 		// Calculate Accuracy
@@ -204,24 +211,40 @@ public class Fully_Connected {
 	
 	// BackProp
 	public void BackProp() {
-
+		
 		for (int i = 0; i < hidTOout.length; i++) {
 
-			double basis0 = (outputs[i] - desiredOuts[i]);
+			double basis0 = 2.0 * (outputs[i] - desiredOuts[i]);
 			biasOutGRAD[i] = basis0;
 			
 			for (int j = 0; j < hidTOout[0].length; j++) {
-
-				hidTOoutGRAD[i][j] += basis0 * hiddenNeurons[hiddenNeurons.length - 1][j];
-
-				double basis1 = basis0 * hidTOout[i][j]
-						* operation.ReLUDerivative(hiddenNeurons[hiddenNeurons.length - 1][j]);
-				//UnReLU-ed value not required for derivative input; as a 0 ReLU implies 0 derivative
 				
-				biasHidGRAD[biasHidGRAD.length - 1][j] += basis1;
-				
-				BackPropPrev(hiddenNeurons.length - 2, j, basis1); //- 2 cuz hidTohid Layer
+				if(hiddenNeurons.length != 0) {
+					
+					hidTOoutGRAD[i][j] += basis0 * hiddenNeurons[hiddenNeurons.length - 1][j];
+					
+					double basis1 = basis0 * hidTOout[i][j]
+							* operation.ReLUDerivative(hiddenNeurons[hiddenNeurons.length - 1][j]);
+					//UnReLU value not required for derivative input; as a 0 ReLU implies 0 derivative
+					
+					biasHidGRAD[biasHidGRAD.length - 1][j] += basis1;
+					
+					BackPropPrev(hiddenNeurons.length - 2, j, basis1); //- 2 cuz hidTohid Layer
 
+					
+				} else {
+					
+					hidTOoutGRAD[i][j] += basis0 * inputs[j];
+					
+					double nBasis = basis0 * hidTOout[i][j] * operation.ReLUDerivative(inputs[j]);
+					
+					int sChannel = j / (prevCorrImgsDim[kernel.length][0] * prevCorrImgsDim[kernel.length][1]);
+					kernelBiasGRAD[kernelBiasGRAD.length - 1][sChannel] += nBasis;
+					
+					BackPropCNN(nBasis, kernel.length - 1, j);
+					
+				}
+				
 			}
 
 		}
@@ -324,7 +347,7 @@ public class Fully_Connected {
 
 		}
 
-		for (int i = 0; i < hidTOhid.length; i++) {
+		for (int i = 0; hiddenNeurons.length != 0 && i < hidTOhid.length; i++) {
 
 			for (int j = 0; j < hidTOhid[0].length; j++) {
 
@@ -340,7 +363,7 @@ public class Fully_Connected {
 
 		}
 
-		for (int i = 0; i < inpTOhid.length; i++) {
+		for (int i = 0; hiddenNeurons.length != 0 && i < inpTOhid.length; i++) {
 
 			biasHid[0][i] += step * biasHidGRAD[0][i];
 
