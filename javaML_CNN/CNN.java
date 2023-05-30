@@ -33,7 +33,7 @@ public class CNN {
 	
 	public CNN() {
 		
-		fcl = new Fully_Connected(3872, 1, 72, 10);
+		fcl = new Fully_Connected(3872, 0, 3872, 10);
 		o = new Operations();
 		
 		step = fcl.step;
@@ -66,6 +66,7 @@ public class CNN {
 	
 	public void initialize() {
 		
+		//Get Data From File
 		double[][] trainingData = null;
 		int[] trainingDataLabel = null;
 
@@ -84,6 +85,7 @@ public class CNN {
 
 		}
 		
+		//Training
 		for (int i = 0; i < totalBatches; i++) {
 
 			int item = r.nextInt(trainingData.length);
@@ -108,6 +110,7 @@ public class CNN {
 			
 			fcl.train(flatten, desiredOuts);
 			
+			//Output Progress
 			if (i % 100 == 0) {
 
 				System.out.println(
@@ -154,9 +157,9 @@ public class CNN {
 			fcl.descent();
 			descent();
 			
-	//		System.out.println("Completed Batch: " + i);
-			
 		}
+		
+		fcl.testSeries();
 		
 	}
 	
